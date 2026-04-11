@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "stim-link/ui"
 
 func main() {
-	fmt.Println("stim-link starting...")
+	ui.New().Run()
 }
