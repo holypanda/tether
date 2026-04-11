@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"stim-link/config"
@@ -13,13 +14,44 @@ import (
 const configPath = "./stim-link.json"
 
 type Connection struct {
-	cfg         *config.Config
-	admin       *identity.Identity
-	sshClient   *sshclient.Client
-	sftpSrv     *sftpserver.Server
-	mountHandle *sshclient.MountHandle
-	stopForward func()
-	closeOnce   sync.Once
+	cfg              *config.Config
+	admin            *identity.Identity
+	sshClient        *sshclient.Client
+	sftpSrv          *sftpserver.Server
+	mountHandle      *sshclient.MountHandle
+	stopForward      func()
+	closeOnce        sync.Once
+	ResolvedMountDir string // absolute VPS path, with ~ expanded
+}
+
+// resolveRemoteMountPoint expands a leading `~` in p by asking the remote shell
+// for $HOME. If p does not start with `~`, it is returned unchanged.
+// Bash's ~ expansion only works when the path is NOT inside single quotes, and
+// our Mount script bash-quotes the path for injection safety, so we have to
+// resolve it client-side before quoting.
+func resolveRemoteMountPoint(c *sshclient.Client, p string) (string, error) {
+	if p == "" {
+		return "", fmt.Errorf("remote mount point is empty")
+	}
+	if !strings.HasPrefix(p, "~") {
+		return p, nil
+	}
+	out, err := c.Run(`printf '%s' "$HOME"`)
+	if err != nil {
+		return "", fmt.Errorf("probe remote HOME: %w", err)
+	}
+	home := strings.TrimSpace(string(out))
+	if home == "" {
+		return "", fmt.Errorf("remote HOME is empty")
+	}
+	if p == "~" {
+		return home, nil
+	}
+	if strings.HasPrefix(p, "~/") {
+		return home + "/" + strings.TrimPrefix(p, "~/"), nil
+	}
+	// ~user form not supported; caller should pass an absolute path instead.
+	return "", fmt.Errorf("unsupported path form %q (only ~ and ~/... are expanded)", p)
 }
 
 // Connect runs the full bring-up sequence. On first run (cfg.Bootstrapped == false)
@@ -63,6 +95,16 @@ func Connect(cfg *config.Config, password string, log func(string)) (*Connection
 		return nil, fmt.Errorf("密钥登录失败: %w", err)
 	}
 
+	// Resolve ~ in the configured mount point before handing it to Mount,
+	// because Mount single-quotes the path (injection-proof) and bash does
+	// not expand ~ inside single quotes.
+	resolvedMount, err := resolveRemoteMountPoint(admClient, cfg.RemoteMountPoint)
+	if err != nil {
+		admClient.Close()
+		return nil, fmt.Errorf("解析远端挂载路径失败: %w", err)
+	}
+	log("远端挂载路径: " + resolvedMount)
+
 	// Local embedded SFTP server
 	log("启动本地 SFTP 服务...")
 	sftpHost, err := identity.Ephemeral()
@@ -101,7 +143,7 @@ func Connect(cfg *config.Config, password string, log func(string)) (*Connection
 	handle, err := admClient.Mount(sshclient.MountParams{
 		WinShareUser:      "winshare",
 		RemoteTunnelPort:  cfg.RemoteTunnelPort,
-		RemoteMountPoint:  cfg.RemoteMountPoint,
+		RemoteMountPoint:  resolvedMount,
 		SFTPPrivateKeyPEM: sftpClient.PrivatePEM(),
 	})
 	if err != nil {
@@ -112,12 +154,13 @@ func Connect(cfg *config.Config, password string, log func(string)) (*Connection
 	}
 	log("挂载成功")
 	return &Connection{
-		cfg:         cfg,
-		admin:       admin,
-		sshClient:   admClient,
-		sftpSrv:     sftpSrv,
-		mountHandle: handle,
-		stopForward: stopForward,
+		cfg:              cfg,
+		admin:            admin,
+		sshClient:        admClient,
+		sftpSrv:          sftpSrv,
+		mountHandle:      handle,
+		stopForward:      stopForward,
+		ResolvedMountDir: resolvedMount,
 	}, nil
 }
 

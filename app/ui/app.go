@@ -140,7 +140,7 @@ func (u *UI) onLaunchClaude() {
 		VpsHost:          u.cfg.VpsHost,
 		VpsUser:          u.cfg.VpsUser,
 		VpsPort:          u.cfg.VpsPort,
-		RemoteMountPoint: u.cfg.RemoteMountPoint,
+		RemoteMountPoint: conn.ResolvedMountDir,
 	})
 	if err != nil {
 		u.logPanel.Error("打开 SSH 窗口失败: %v", err)
