@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
+	"stim-link/claude"
 	"stim-link/config"
 )
 
@@ -20,6 +21,7 @@ type UI struct {
 	logPanel      *LogPanel
 	connectBtn    *widget.Button
 	disconnectBtn *widget.Button
+	claudeBtn     *widget.Button
 	connMu        sync.Mutex
 	conn          *Connection
 }
@@ -60,6 +62,9 @@ func (u *UI) build() {
 
 	buttons := container.NewHBox(u.connectBtn, u.disconnectBtn)
 
+	u.claudeBtn = widget.NewButton("🚀 启动 Claude Code", u.onLaunchClaude)
+	u.claudeBtn.Disable()
+
 	content := container.NewVBox(
 		widget.NewLabelWithStyle("连接配置", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		u.form.Container(),
@@ -67,6 +72,7 @@ func (u *UI) build() {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("状态", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		u.status.Container(),
+		u.claudeBtn,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("日志", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		u.logPanel.Container(),
@@ -101,6 +107,7 @@ func (u *UI) onConnect() {
 		}
 		u.status.Set(StateConnected)
 		u.disconnectBtn.Enable()
+		u.claudeBtn.Enable()
 	}()
 }
 
@@ -114,7 +121,29 @@ func (u *UI) onDisconnect() {
 		c.Disconnect(u.logPanel.Append)
 		u.status.Set(StateDisconnected)
 		u.connectBtn.Enable()
+		u.claudeBtn.Disable()
 	}()
+}
+
+func (u *UI) onLaunchClaude() {
+	u.connMu.Lock()
+	conn := u.conn
+	u.connMu.Unlock()
+	if conn == nil {
+		return
+	}
+	err := claude.Launch(claude.LaunchParams{
+		AdminKeyPath:     u.cfg.AdminKeyPath,
+		VpsHost:          u.cfg.VpsHost,
+		VpsUser:          u.cfg.VpsUser,
+		VpsPort:          u.cfg.VpsPort,
+		RemoteMountPoint: u.cfg.RemoteMountPoint,
+	})
+	if err != nil {
+		u.logPanel.Error("启动 Claude 失败: %v", err)
+		return
+	}
+	u.logPanel.Append("已启动新的 Claude 会话窗口")
 }
 
 func (u *UI) Run() {
