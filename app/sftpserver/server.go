@@ -3,7 +3,11 @@ package sftpserver
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/pkg/sftp"
@@ -107,15 +111,119 @@ func (s *Server) handleConn(nConn net.Conn, sshCfg *ssh.ServerConfig) {
 				if req.Type == "subsystem" && len(req.Payload) >= 4 && string(req.Payload[4:]) == "sftp" {
 					ok = true
 					_ = req.Reply(true, nil)
-					srv, err := sftp.NewServer(ch, sftp.WithServerWorkingDirectory(s.cfg.RootDir))
-					if err != nil {
-						return
+					handlers := &chrootHandlers{root: s.cfg.RootDir}
+					sftpHandlers := sftp.Handlers{
+						FileGet:  handlers,
+						FilePut:  handlers,
+						FileCmd:  handlers,
+						FileList: handlers,
 					}
+					srv := sftp.NewRequestServer(ch, sftpHandlers)
 					_ = srv.Serve()
+					srv.Close()
 					return
 				}
 				_ = req.Reply(ok, nil)
 			}
 		}(ch, reqs)
 	}
+}
+
+// chrootHandlers enforces that all SFTP operations stay within root.
+type chrootHandlers struct {
+	root string
+}
+
+func (c *chrootHandlers) realPath(p string) (string, error) {
+	clean := filepath.Clean("/" + strings.TrimPrefix(p, "/"))
+	full := filepath.Join(c.root, clean)
+	rel, err := filepath.Rel(c.root, full)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", os.ErrPermission
+	}
+	return full, nil
+}
+
+func (c *chrootHandlers) Fileread(r *sftp.Request) (io.ReaderAt, error) {
+	full, err := c.realPath(r.Filepath)
+	if err != nil {
+		return nil, err
+	}
+	return os.OpenFile(full, os.O_RDONLY, 0)
+}
+
+func (c *chrootHandlers) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+	full, err := c.realPath(r.Filepath)
+	if err != nil {
+		return nil, err
+	}
+	return os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+}
+
+func (c *chrootHandlers) Filecmd(r *sftp.Request) error {
+	full, err := c.realPath(r.Filepath)
+	if err != nil {
+		return err
+	}
+	switch r.Method {
+	case "Setstat":
+		return nil
+	case "Rename":
+		target, err := c.realPath(r.Target)
+		if err != nil {
+			return err
+		}
+		return os.Rename(full, target)
+	case "Rmdir":
+		return os.Remove(full)
+	case "Mkdir":
+		return os.MkdirAll(full, 0o755)
+	case "Remove":
+		return os.Remove(full)
+	case "Symlink":
+		return os.ErrPermission
+	}
+	return nil
+}
+
+type listerAt []os.FileInfo
+
+func (l listerAt) ListAt(f []os.FileInfo, offset int64) (int, error) {
+	if offset >= int64(len(l)) {
+		return 0, io.EOF
+	}
+	n := copy(f, l[offset:])
+	if n < len(f) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+func (c *chrootHandlers) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
+	full, err := c.realPath(r.Filepath)
+	if err != nil {
+		return nil, err
+	}
+	switch r.Method {
+	case "List":
+		entries, err := os.ReadDir(full)
+		if err != nil {
+			return nil, err
+		}
+		infos := make([]os.FileInfo, 0, len(entries))
+		for _, e := range entries {
+			info, err := e.Info()
+			if err == nil {
+				infos = append(infos, info)
+			}
+		}
+		return listerAt(infos), nil
+	case "Stat":
+		info, err := os.Stat(full)
+		if err != nil {
+			return nil, err
+		}
+		return listerAt([]os.FileInfo{info}), nil
+	}
+	return nil, os.ErrInvalid
 }

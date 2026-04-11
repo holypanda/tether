@@ -87,3 +87,32 @@ func TestSFTPServerRejectsWrongKey(t *testing.T) {
 		t.Error("expected auth failure")
 	}
 }
+
+func TestSFTPServerRejectsEscape(t *testing.T) {
+	dir := t.TempDir()
+	serverID, _ := identity.Ephemeral()
+	clientID, _ := identity.Ephemeral()
+
+	srv, _ := Start(Config{
+		RootDir:          dir,
+		HostIdentity:     serverID,
+		AllowedClientKey: clientID.PublicKey(),
+	})
+	defer srv.Close()
+
+	signer, _ := clientID.Signer()
+	conn, _ := ssh.Dial("tcp", srv.Addr(), &ssh.ClientConfig{
+		User:            "winshare",
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	})
+	defer conn.Close()
+	sc, _ := sftp.NewClient(conn)
+	defer sc.Close()
+
+	// Try to read a file outside the root
+	_, err := sc.Open("/etc/passwd")
+	if err == nil {
+		t.Error("expected permission denied when escaping root")
+	}
+}
