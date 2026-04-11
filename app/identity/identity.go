@@ -21,6 +21,10 @@ type Identity struct {
 // GenerateOrLoad loads an existing Ed25519 key from path, or generates and saves a new one
 // if the file does not exist. Any other read/parse error is returned to the caller rather
 // than silently regenerating.
+//
+// On Windows, the key file's NTFS ACL is locked down to the current user on every load
+// (idempotent), because OpenSSH ssh.exe refuses to use keys with inherited/overly-permissive
+// ACLs and silently falls back to password prompt.
 func GenerateOrLoad(path string) (*Identity, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -41,6 +45,9 @@ func GenerateOrLoad(path string) (*Identity, error) {
 	if len(priv) != ed25519.PrivateKeySize {
 		return nil, fmt.Errorf("identity: unexpected key length %d", len(priv))
 	}
+	// Best-effort ACL fix on every load — handles keys created before the lockdown
+	// was in place, or keys moved between machines.
+	_ = lockdownKeyFile(path)
 	return &Identity{priv: priv, pub: priv.Public().(ed25519.PublicKey)}, nil
 }
 
@@ -67,6 +74,10 @@ func generateAndSave(path string) (*Identity, error) {
 	}
 	if err := os.WriteFile(path, pem.EncodeToMemory(pemBlock), 0o600); err != nil {
 		return nil, err
+	}
+	// On Windows, NTFS ACLs override the 0o600 mode above. Lock down explicitly.
+	if err := lockdownKeyFile(path); err != nil {
+		return nil, fmt.Errorf("identity: lock down key file: %w", err)
 	}
 	return &Identity{priv: priv, pub: pub}, nil
 }
