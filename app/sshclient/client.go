@@ -70,6 +70,7 @@ func (c *Client) ReverseForward(remoteAddr, localAddr string) (func(), error) {
 
 	done := make(chan struct{})
 	var wg sync.WaitGroup
+	var once sync.Once
 
 	wg.Add(1)
 	go func() {
@@ -88,8 +89,10 @@ func (c *Client) ReverseForward(remoteAddr, localAddr string) (func(), error) {
 	}()
 
 	stop := func() {
-		close(done)
-		_ = ln.Close()
+		once.Do(func() {
+			close(done)
+			_ = ln.Close()
+		})
 		wg.Wait()
 	}
 	return stop, nil
