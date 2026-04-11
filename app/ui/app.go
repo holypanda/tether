@@ -52,7 +52,7 @@ func New() *UI {
 func (u *UI) build() {
 	cfg, loadErr := config.Load(configPath)
 	u.cfg = cfg
-	u.form = NewConfigForm(cfg)
+	u.form = NewConfigForm(cfg, u.window)
 	u.status = NewStatusPanel()
 	u.logPanel = NewLogPanel()
 	if loadErr != nil {
