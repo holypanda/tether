@@ -25,7 +25,7 @@ func Launch(p LaunchParams) error {
 	batchPath := filepath.Join(os.TempDir(), "stim-link-ssh.cmd")
 	body := fmt.Sprintf("@echo off\r\n"+
 		"title stim-link VPS shell (%s@%s)\r\n"+
-		"ssh -i \"%s\" -p %d -o StrictHostKeyChecking=no -t %s@%s \"cd %s; exec $SHELL -l\"\r\n"+
+		"ssh -i \"%s\" -p %d -o StrictHostKeyChecking=no -t %s@%s \"cd %s && exec bash\"\r\n"+
 		"echo.\r\n"+
 		"echo [SSH session ended - press any key to close]\r\n"+
 		"pause >nul\r\n",
