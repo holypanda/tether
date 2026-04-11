@@ -28,17 +28,21 @@ func defaults() *Config {
 	}
 }
 
+// Load reads a stim-link config file. On any failure — missing file, permission
+// error, malformed JSON — it returns a defaults()-initialised Config alongside
+// the error so callers can still render the UI with sane values. The Config
+// return is never nil.
 func Load(path string) (*Config, error) {
+	cfg := defaults()
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return defaults(), nil
+		return cfg, nil
 	}
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
-	cfg := defaults()
 	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, err
+		return defaults(), err
 	}
 	return cfg, nil
 }

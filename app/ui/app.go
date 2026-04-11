@@ -50,11 +50,14 @@ func New() *UI {
 }
 
 func (u *UI) build() {
-	cfg, _ := config.Load(configPath)
+	cfg, loadErr := config.Load(configPath)
 	u.cfg = cfg
 	u.form = NewConfigForm(cfg)
 	u.status = NewStatusPanel()
 	u.logPanel = NewLogPanel()
+	if loadErr != nil {
+		u.logPanel.Error("加载 %s 失败, 已使用默认值: %v", configPath, loadErr)
+	}
 
 	u.connectBtn = widget.NewButton("🔌 连接", u.onConnect)
 	u.disconnectBtn = widget.NewButton("⏹ 断开", u.onDisconnect)

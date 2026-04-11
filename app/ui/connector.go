@@ -10,7 +10,7 @@ import (
 	"stim-link/sshclient"
 )
 
-const configPath = "./config.json"
+const configPath = "./stim-link.json"
 
 type Connection struct {
 	cfg         *config.Config
