@@ -10,10 +10,12 @@ import (
 )
 
 type UI struct {
-	app    fyne.App
-	window fyne.Window
-	cfg    *config.Config
-	form   *ConfigForm
+	app      fyne.App
+	window   fyne.Window
+	cfg      *config.Config
+	form     *ConfigForm
+	status   *StatusPanel
+	logPanel *LogPanel
 }
 
 func New() *UI {
@@ -29,10 +31,18 @@ func (u *UI) build() {
 	cfg, _ := config.Load("./config.json")
 	u.cfg = cfg
 	u.form = NewConfigForm(cfg)
+	u.status = NewStatusPanel()
+	u.logPanel = NewLogPanel()
 
 	content := container.NewVBox(
 		widget.NewLabelWithStyle("连接配置", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		u.form.Container(),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("状态", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		u.status.Container(),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("日志", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		u.logPanel.Container(),
 	)
 	u.window.SetContent(content)
 }
