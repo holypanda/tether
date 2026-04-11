@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -21,6 +22,7 @@ type Server struct {
 	listener net.Listener
 	cfg      Config
 	done     chan struct{}
+	wg       sync.WaitGroup
 }
 
 func Start(cfg Config) (*Server, error) {
@@ -57,7 +59,9 @@ func (s *Server) Port() int {
 
 func (s *Server) Close() error {
 	close(s.done)
-	return s.listener.Close()
+	err := s.listener.Close()
+	s.wg.Wait()
+	return err
 }
 
 func (s *Server) serve(sshCfg *ssh.ServerConfig) {
@@ -71,16 +75,21 @@ func (s *Server) serve(sshCfg *ssh.ServerConfig) {
 			}
 			return
 		}
-		go s.handleConn(conn, sshCfg)
+		s.wg.Add(1)
+		go func(c net.Conn) {
+			defer s.wg.Done()
+			s.handleConn(c, sshCfg)
+		}(conn)
 	}
 }
 
 func (s *Server) handleConn(nConn net.Conn, sshCfg *ssh.ServerConfig) {
 	defer nConn.Close()
-	_, chans, reqs, err := ssh.NewServerConn(nConn, sshCfg)
+	sshConn, chans, reqs, err := ssh.NewServerConn(nConn, sshCfg)
 	if err != nil {
 		return
 	}
+	defer sshConn.Close()
 	go ssh.DiscardRequests(reqs)
 	for newChan := range chans {
 		if newChan.ChannelType() != "session" {

@@ -2,7 +2,6 @@ package sftpserver
 
 import (
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -87,6 +86,4 @@ func TestSFTPServerRejectsWrongKey(t *testing.T) {
 	if err == nil {
 		t.Error("expected auth failure")
 	}
-
-	_ = net.Dialer{}
 }
