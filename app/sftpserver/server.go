@@ -157,7 +157,11 @@ func (c *chrootHandlers) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	flags := os.O_WRONLY | os.O_CREATE
+	if !r.Pflags().Append {
+		flags |= os.O_TRUNC
+	}
+	return os.OpenFile(full, flags, 0o644)
 }
 
 func (c *chrootHandlers) Filecmd(r *sftp.Request) error {
@@ -177,10 +181,10 @@ func (c *chrootHandlers) Filecmd(r *sftp.Request) error {
 	case "Rmdir":
 		return os.Remove(full)
 	case "Mkdir":
-		return os.MkdirAll(full, 0o755)
+		return os.Mkdir(full, 0o755)
 	case "Remove":
 		return os.Remove(full)
-	case "Symlink":
+	case "Symlink", "Link":
 		return os.ErrPermission
 	}
 	return nil
