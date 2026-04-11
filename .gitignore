@@ -1,0 +1,6 @@
+app/stim-link*
+app/keys/
+app/config.json
+*.exe
+*.log
+/tmp/
