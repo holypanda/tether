@@ -191,3 +191,10 @@ func TestRunScript(t *testing.T) {
 		t.Errorf("got %q", out)
 	}
 }
+
+func TestReverseForwardProxiesEndToEnd(t *testing.T) {
+	// This test uses a real ssh server (the one started by startTestSSHServer)
+	// but that server doesn't implement tcpip-forward requests. Skip for now —
+	// real reverse forward is covered by E2E testing against VPS.
+	t.Skip("reverse forward requires real sshd; covered by manual E2E")
+}

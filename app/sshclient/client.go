@@ -2,6 +2,9 @@ package sshclient
 
 import (
 	"fmt"
+	"io"
+	"net"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -53,4 +56,59 @@ func dial(host string, port int, cfg *ssh.ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	return &Client{conn: conn}, nil
+}
+
+// ReverseForward asks the remote host to listen on remoteAddr (e.g. "localhost:2222").
+// Each accepted remote connection is bidirectionally proxied to localAddr.
+// Returns a stop function that cancels the forward and closes the remote listener.
+// The stop function waits for all in-flight proxy goroutines to finish before returning.
+func (c *Client) ReverseForward(remoteAddr, localAddr string) (func(), error) {
+	ln, err := c.conn.Listen("tcp", remoteAddr)
+	if err != nil {
+		return nil, fmt.Errorf("remote Listen %s: %w", remoteAddr, err)
+	}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			rConn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			wg.Add(1)
+			go func(remote net.Conn) {
+				defer wg.Done()
+				proxyConn(remote, localAddr, done)
+			}(rConn)
+		}
+	}()
+
+	stop := func() {
+		close(done)
+		_ = ln.Close()
+		wg.Wait()
+	}
+	return stop, nil
+}
+
+func proxyConn(remote net.Conn, localAddr string, done <-chan struct{}) {
+	defer remote.Close()
+	local, err := net.Dial("tcp", localAddr)
+	if err != nil {
+		return
+	}
+	defer local.Close()
+
+	errc := make(chan error, 2)
+	go func() { _, err := io.Copy(remote, local); errc <- err }()
+	go func() { _, err := io.Copy(local, remote); errc <- err }()
+
+	select {
+	case <-done:
+	case <-errc:
+	}
 }
