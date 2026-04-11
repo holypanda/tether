@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -21,7 +22,7 @@ type StatusPanel struct {
 	label     *widget.Label
 	uptime    *widget.Label
 	startTime time.Time
-	state     State
+	state     atomic.Int32
 	container *fyne.Container
 }
 
@@ -37,7 +38,7 @@ func NewStatusPanel() *StatusPanel {
 func (s *StatusPanel) Container() *fyne.Container { return s.container }
 
 func (s *StatusPanel) Set(state State) {
-	s.state = state
+	s.state.Store(int32(state))
 	switch state {
 	case StateDisconnected:
 		s.label.SetText("● 未连接")
@@ -54,7 +55,7 @@ func (s *StatusPanel) tick() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		if s.state != StateConnected {
+		if State(s.state.Load()) != StateConnected {
 			return
 		}
 		d := time.Since(s.startTime)

@@ -23,10 +23,12 @@ type Config struct {
 }
 
 type Server struct {
-	listener net.Listener
-	cfg      Config
-	done     chan struct{}
-	wg       sync.WaitGroup
+	listener  net.Listener
+	cfg       Config
+	done      chan struct{}
+	wg        sync.WaitGroup
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func Start(cfg Config) (*Server, error) {
@@ -62,10 +64,12 @@ func (s *Server) Port() int {
 }
 
 func (s *Server) Close() error {
-	close(s.done)
-	err := s.listener.Close()
+	s.closeOnce.Do(func() {
+		close(s.done)
+		s.closeErr = s.listener.Close()
+	})
 	s.wg.Wait()
-	return err
+	return s.closeErr
 }
 
 func (s *Server) serve(sshCfg *ssh.ServerConfig) {

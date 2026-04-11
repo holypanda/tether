@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sync"
 
 	"stim-link/config"
 	"stim-link/identity"
@@ -18,6 +19,7 @@ type Connection struct {
 	sftpSrv     *sftpserver.Server
 	mountHandle *sshclient.MountHandle
 	stopForward func()
+	closeOnce   sync.Once
 }
 
 // Connect runs the full bring-up sequence. On first run (cfg.Bootstrapped == false)
@@ -120,29 +122,31 @@ func Connect(cfg *config.Config, password string, log func(string)) (*Connection
 }
 
 // Disconnect tears down all resources in reverse order.
-// Safe to call on a nil Connection.
+// Safe to call on a nil Connection; idempotent via sync.Once.
 func (c *Connection) Disconnect(log func(string)) {
 	if c == nil {
 		return
 	}
-	if c.sshClient != nil && c.mountHandle != nil {
-		log("卸载远端...")
-		if err := c.sshClient.Unmount(c.mountHandle); err != nil {
-			log("unmount err: " + err.Error())
+	c.closeOnce.Do(func() {
+		if c.sshClient != nil && c.mountHandle != nil {
+			log("卸载远端...")
+			if err := c.sshClient.Unmount(c.mountHandle); err != nil {
+				log("unmount err: " + err.Error())
+			}
 		}
-	}
-	if c.stopForward != nil {
-		log("关闭反向隧道...")
-		c.stopForward()
-	}
-	if c.sftpSrv != nil {
-		log("关闭本地 SFTP 服务...")
-		_ = c.sftpSrv.Close()
-	}
-	if c.sshClient != nil {
-		_ = c.sshClient.Close()
-	}
-	log("已全部清理")
+		if c.stopForward != nil {
+			log("关闭反向隧道...")
+			c.stopForward()
+		}
+		if c.sftpSrv != nil {
+			log("关闭本地 SFTP 服务...")
+			_ = c.sftpSrv.Close()
+		}
+		if c.sshClient != nil {
+			_ = c.sshClient.Close()
+		}
+		log("已全部清理")
+	})
 }
 
 // AdminKeyPath exposes the admin key path for the Claude launcher.

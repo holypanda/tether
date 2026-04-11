@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"sync"
+
 	"fyne.io/fyne/v2"
 	fyneapp "fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -10,15 +12,30 @@ import (
 )
 
 type UI struct {
-	app          fyne.App
-	window       fyne.Window
-	cfg          *config.Config
-	form         *ConfigForm
-	status       *StatusPanel
-	logPanel     *LogPanel
-	connectBtn   *widget.Button
+	app           fyne.App
+	window        fyne.Window
+	cfg           *config.Config
+	form          *ConfigForm
+	status        *StatusPanel
+	logPanel      *LogPanel
+	connectBtn    *widget.Button
 	disconnectBtn *widget.Button
-	conn         *Connection
+	connMu        sync.Mutex
+	conn          *Connection
+}
+
+func (u *UI) setConn(c *Connection) {
+	u.connMu.Lock()
+	u.conn = c
+	u.connMu.Unlock()
+}
+
+func (u *UI) takeConn() *Connection {
+	u.connMu.Lock()
+	c := u.conn
+	u.conn = nil
+	u.connMu.Unlock()
+	return c
 }
 
 func New() *UI {
@@ -57,10 +74,9 @@ func (u *UI) build() {
 	u.window.SetContent(content)
 
 	u.window.SetCloseIntercept(func() {
-		if u.conn != nil {
+		if c := u.takeConn(); c != nil {
 			u.logPanel.Append("窗口关闭, 清理中...")
-			u.conn.Disconnect(u.logPanel.Append)
-			u.conn = nil
+			c.Disconnect(u.logPanel.Append)
 		}
 		u.window.Close()
 	})
@@ -78,9 +94,11 @@ func (u *UI) onConnect() {
 			u.connectBtn.Enable()
 			return
 		}
-		u.conn = conn
+		u.setConn(conn)
 		u.form.ClearPassword()
-		_ = config.Save(configPath, u.cfg)
+		if err := config.Save(configPath, u.cfg); err != nil {
+			u.logPanel.Error("保存配置失败: %v", err)
+		}
 		u.status.Set(StateConnected)
 		u.disconnectBtn.Enable()
 	}()
@@ -89,8 +107,11 @@ func (u *UI) onConnect() {
 func (u *UI) onDisconnect() {
 	u.disconnectBtn.Disable()
 	go func() {
-		u.conn.Disconnect(u.logPanel.Append)
-		u.conn = nil
+		c := u.takeConn()
+		if c == nil {
+			return
+		}
+		c.Disconnect(u.logPanel.Append)
 		u.status.Set(StateDisconnected)
 		u.connectBtn.Enable()
 	}()
