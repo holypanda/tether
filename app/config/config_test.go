@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -27,8 +26,8 @@ func TestSaveAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if loaded.VpsHost != orig.VpsHost || loaded.VpsPort != orig.VpsPort {
-		t.Errorf("round trip mismatch: %+v vs %+v", loaded, orig)
+	if *loaded != *orig {
+		t.Errorf("round trip mismatch:\n got  %+v\n want %+v", loaded, orig)
 	}
 }
 
@@ -45,5 +44,4 @@ func TestLoadMissingReturnsDefaults(t *testing.T) {
 	if cfg.VpsPort != 22 {
 		t.Errorf("default VpsPort should be 22, got %d", cfg.VpsPort)
 	}
-	_ = os.Remove(path)
 }
