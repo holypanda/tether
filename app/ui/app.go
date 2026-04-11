@@ -65,7 +65,7 @@ func (u *UI) build() {
 
 	buttons := container.NewHBox(u.connectBtn, u.disconnectBtn)
 
-	u.claudeBtn = widget.NewButton("🚀 启动 Claude Code", u.onLaunchClaude)
+	u.claudeBtn = widget.NewButton("🔗 打开 VPS SSH 窗口", u.onLaunchClaude)
 	u.claudeBtn.Disable()
 
 	content := container.NewVBox(
@@ -143,10 +143,10 @@ func (u *UI) onLaunchClaude() {
 		RemoteMountPoint: u.cfg.RemoteMountPoint,
 	})
 	if err != nil {
-		u.logPanel.Error("启动 Claude 失败: %v", err)
+		u.logPanel.Error("打开 SSH 窗口失败: %v", err)
 		return
 	}
-	u.logPanel.Append("已启动新的 Claude 会话窗口")
+	u.logPanel.Append("已打开新的 VPS SSH 窗口")
 }
 
 func (u *UI) Run() {
