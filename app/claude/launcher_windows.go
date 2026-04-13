@@ -36,7 +36,12 @@ func Launch(p LaunchParams) error {
 		return fmt.Errorf("write launch batch: %w", err)
 	}
 
+	// CREATE_NO_WINDOW hides the intermediate cmd.exe that drives `start`;
+	// `start` itself opens a brand-new visible console for the batch file.
 	cmd := exec.Command("cmd.exe", "/c", "start", "", "cmd.exe", "/k", batchPath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
 	return cmd.Start()
 }
