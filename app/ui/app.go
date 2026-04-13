@@ -8,8 +8,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"stim-link/claude"
-	"stim-link/config"
+	"tether/claude"
+	"tether/config"
 )
 
 type UI struct {
@@ -42,7 +42,7 @@ func (u *UI) takeConn() *Connection {
 
 func New() *UI {
 	a := fyneapp.New()
-	w := a.NewWindow("stim-link")
+	w := a.NewWindow("tether")
 	w.Resize(fyne.NewSize(560, 560))
 	u := &UI{app: a, window: w}
 	u.build()

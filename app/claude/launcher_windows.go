@@ -22,9 +22,9 @@ type LaunchParams struct {
 // It uses the admin key that was set up during bootstrap, so no password prompt.
 // The mount directory is passed so the session opens in ~/local-code by default.
 func Launch(p LaunchParams) error {
-	batchPath := filepath.Join(os.TempDir(), "stim-link-ssh.cmd")
+	batchPath := filepath.Join(os.TempDir(), "tether-ssh.cmd")
 	body := fmt.Sprintf("@echo off\r\n"+
-		"title stim-link VPS shell (%s@%s)\r\n"+
+		"title tether VPS shell (%s@%s)\r\n"+
 		"ssh -i \"%s\" -p %d -o StrictHostKeyChecking=no -t %s@%s \"cd %s && exec bash\"\r\n"+
 		"echo.\r\n"+
 		"echo [SSH session ended - press any key to close]\r\n"+

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 构建一个单文件 Windows `.exe` GUI 工具 (`stim-link.exe`)，点击后能在 VPS 上建立反向 SSH 隧道 + 嵌入式 SFTP 回连，实现 VPS 上的 `~/local-code` 直接读写 Windows 本地项目文件；并提供"启动 Claude Code"按钮一键进入远程开发。
+**Goal:** 构建一个单文件 Windows `.exe` GUI 工具 (`tether.exe`)，点击后能在 VPS 上建立反向 SSH 隧道 + 嵌入式 SFTP 回连，实现 VPS 上的 `~/local-code` 直接读写 Windows 本地项目文件；并提供"启动 Claude Code"按钮一键进入远程开发。
 
 **Architecture:** 单 Go 二进制 + Fyne GUI。内嵌一个 SFTP Server（只监听 localhost），通过 `ssh -R` 反向暴露给 VPS，VPS 上的 `sshfs` 通过反向隧道回连。所有 SSH 操作用 Go `crypto/ssh` 库原生完成，Windows 侧零依赖（不需要 OpenSSH Server、不需要管理员）。
 
@@ -74,7 +74,7 @@
 | 15 | UI - 连接按钮接线 | 点"连接"走完整 bootstrap/挂载流程 |
 | 16 | UI - 启动 Claude 按钮接线 | 新 PowerShell 跑 claude |
 | 17 | UI - 断开 & 关闭清理 | fusermount -u + 删临时私钥 |
-| 18 | 交叉编译 Windows .exe | `stim-link.exe` 产物 |
+| 18 | 交叉编译 Windows .exe | `tether.exe` 产物 |
 | 19 | 端到端冒烟测试 | Windows 上手动验证全流程 |
 
 ---
@@ -148,13 +148,13 @@ rm -rf /tmp/hello-win /tmp/go1.22.5.linux-amd64.tar.gz
 cd /root/windows-auto-stimulator
 git init
 git add docs/
-git commit -m "docs: add spec and plan for stim-link"
+git commit -m "docs: add spec and plan for tether"
 ```
 
 - [ ] **Step 2: 创建 `.gitignore`**
 
 ```
-app/stim-link*
+app/tether*
 app/keys/
 app/config.json
 *.exe
@@ -169,7 +169,7 @@ app/config.json
 ```bash
 mkdir -p /root/windows-auto-stimulator/app
 cd /root/windows-auto-stimulator/app
-go mod init stim-link
+go mod init tether
 ```
 
 - [ ] **Step 4: 创建最小 `main.go`**
@@ -180,7 +180,7 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println("stim-link starting...")
+	fmt.Println("tether starting...")
 }
 ```
 
@@ -190,18 +190,18 @@ func main() {
 
 ```bash
 cd /root/windows-auto-stimulator/app
-go build -o stim-link .
-./stim-link
+go build -o tether .
+./tether
 ```
 
-Expected: 输出 `stim-link starting...`
+Expected: 输出 `tether starting...`
 
 - [ ] **Step 6: 提交**
 
 ```bash
 cd /root/windows-auto-stimulator
 git add .gitignore app/go.mod app/main.go
-git commit -m "chore: init stim-link go module"
+git commit -m "chore: init tether go module"
 ```
 
 ---
@@ -545,7 +545,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 func TestSFTPServerRoundTrip(t *testing.T) {
@@ -654,7 +654,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 type Config struct {
@@ -998,7 +998,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 // startTestSSHServer 在 127.0.0.1 起一个只接受固定密码或公钥的 SSH 服务端,
@@ -1111,7 +1111,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 type Client struct {
@@ -1583,7 +1583,7 @@ func (c *Client) Mount(p MountParams) (*MountHandle, error) {
 	if _, err := rand.Read(randBytes); err != nil {
 		return nil, err
 	}
-	tempKey := fmt.Sprintf("/tmp/.stim-link-%s", hex.EncodeToString(randBytes))
+	tempKey := fmt.Sprintf("/tmp/.tether-%s", hex.EncodeToString(randBytes))
 
 	// 把私钥内容和挂载命令打包到一个脚本, RunScript 统一执行
 	script := fmt.Sprintf(`
@@ -1779,7 +1779,7 @@ type UI struct {
 
 func New() *UI {
 	a := fyneapp.New()
-	w := a.NewWindow("stim-link")
+	w := a.NewWindow("tether")
 	w.Resize(fyne.NewSize(560, 560))
 	u := &UI{app: a, window: w}
 	u.build()
@@ -1787,7 +1787,7 @@ func New() *UI {
 }
 
 func (u *UI) build() {
-	placeholder := widget.NewLabel("stim-link starting...")
+	placeholder := widget.NewLabel("tether starting...")
 	u.window.SetContent(container.NewCenter(placeholder))
 }
 
@@ -1803,7 +1803,7 @@ func (u *UI) Run() {
 ```go
 package main
 
-import "stim-link/ui"
+import "tether/ui"
 
 func main() {
 	ui.New().Run()
@@ -1814,7 +1814,7 @@ func main() {
 
 ```bash
 cd /root/windows-auto-stimulator/app
-go build -o stim-link .
+go build -o tether .
 ```
 
 Expected: 编译成功（Linux 本地不会有 display，直接跑会卡在 `ShowAndRun`，所以不跑）
@@ -1847,7 +1847,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"stim-link/config"
+	"tether/config"
 )
 
 type ConfigForm struct {
@@ -1953,7 +1953,7 @@ import (
 	fyneapp "fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"stim-link/config"
+	"tether/config"
 )
 ```
 
@@ -1961,7 +1961,7 @@ import (
 
 ```bash
 cd /root/windows-auto-stimulator/app
-go build -o stim-link .
+go build -o tether .
 ```
 
 Expected: 成功
@@ -2141,7 +2141,7 @@ type UI struct {
 - [ ] **Step 4: 验证构建**
 
 ```bash
-go build -o stim-link .
+go build -o tether .
 ```
 
 Expected: 成功
@@ -2172,10 +2172,10 @@ package ui
 import (
 	"fmt"
 
-	"stim-link/config"
-	"stim-link/identity"
-	"stim-link/sftpserver"
-	"stim-link/sshclient"
+	"tether/config"
+	"tether/identity"
+	"tether/sftpserver"
+	"tether/sshclient"
 )
 
 type Connection struct {
@@ -2382,7 +2382,7 @@ u.window.SetCloseIntercept(func() {
 - [ ] **Step 3: 验证构建**
 
 ```bash
-go build -o stim-link .
+go build -o tether .
 ```
 
 Expected: 成功
@@ -2467,13 +2467,13 @@ func (u *UI) onLaunchClaude() {
 加 import：
 
 ```go
-import "stim-link/claude"
+import "tether/claude"
 ```
 
 - [ ] **Step 4: 验证构建**
 
 ```bash
-go build -o stim-link .
+go build -o tether .
 ```
 
 Expected: 成功
@@ -2513,7 +2513,7 @@ u.window.SetCloseIntercept(func() {
 - [ ] **Step 2: 验证构建**
 
 ```bash
-go build -o stim-link .
+go build -o tether .
 ```
 
 - [ ] **Step 3: 提交**
@@ -2535,9 +2535,9 @@ git commit -m "fix(ui): ensure cleanup before window close"
 ```bash
 cd /root/windows-auto-stimulator/app
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -ldflags "-s -w -H=windowsgui" -o stim-link.exe .
-ls -lh stim-link.exe
-file stim-link.exe
+  go build -ldflags "-s -w -H=windowsgui" -o tether.exe .
+ls -lh tether.exe
+file tether.exe
 ```
 
 Expected:
@@ -2558,10 +2558,10 @@ Expected: 全 PASS
 ```bash
 cd /root/windows-auto-stimulator
 git add app/
-git commit -m "chore: build Windows stim-link.exe"
+git commit -m "chore: build Windows tether.exe"
 ```
 
-（stim-link.exe 已在 .gitignore 中，不会被提交本身）
+（tether.exe 已在 .gitignore 中，不会被提交本身）
 
 ---
 
@@ -2584,13 +2584,13 @@ rm -rf ~/local-code
 
 - [ ] **Step 2: 分发 exe**
 
-把 `/root/windows-auto-stimulator/app/stim-link.exe` 复制到 Windows (SCP / 网盘 / 其它方式)，放到任意空目录，比如 `D:\stim-link-test\`。
+把 `/root/windows-auto-stimulator/app/tether.exe` 复制到 Windows (SCP / 网盘 / 其它方式)，放到任意空目录，比如 `D:\tether-test\`。
 
 - [ ] **Step 3: 首次运行**
 
-双击 `stim-link.exe`：
+双击 `tether.exe`：
 - Windows 无需管理员权限
-- 填写 VPS 地址、VPS 密码、共享目录（例如 `D:\stim-link-test`）
+- 填写 VPS 地址、VPS 密码、共享目录（例如 `D:\tether-test`）
 - 点"连接"
 - 期望日志依次输出：
   - 加载 admin 密钥
@@ -2612,7 +2612,7 @@ ls ~/local-code
 touch ~/local-code/from-vps.txt
 ```
 
-Expected: `from-vps.txt` 在 Windows 的 `D:\stim-link-test\` 里立刻出现
+Expected: `from-vps.txt` 在 Windows 的 `D:\tether-test\` 里立刻出现
 
 - [ ] **Step 5: 点"启动 Claude Code"按钮**
 
@@ -2626,7 +2626,7 @@ Expected:
 请在当前目录创建 test.md, 内容 "hello from claude"
 ```
 
-Expected: `D:\stim-link-test\test.md` 出现且内容正确。
+Expected: `D:\tether-test\test.md` 出现且内容正确。
 
 - [ ] **Step 6: 点"断开"按钮**
 
@@ -2641,16 +2641,16 @@ Expected 日志：
 在 VPS：
 ```bash
 ls ~/local-code
-ls /tmp/.stim-link-*
+ls /tmp/.tether-*
 ```
 
 Expected:
 - `~/local-code` 空（未挂载）
-- `/tmp/.stim-link-*` 不存在（临时私钥已删）
+- `/tmp/.tether-*` 不存在（临时私钥已删）
 
 - [ ] **Step 7: 再次运行 (免密)**
 
-重新双击 `stim-link.exe`，点"连接"。
+重新双击 `tether.exe`，点"连接"。
 
 Expected:
 - 不再询问密码
@@ -2662,7 +2662,7 @@ Expected:
 
 Expected:
 - 窗口短暂保持（执行清理）
-- VPS 上 `ls ~/local-code` 为空；`/tmp/.stim-link-*` 不存在
+- VPS 上 `ls ~/local-code` 为空；`/tmp/.tether-*` 不存在
 
 - [ ] **Step 9: 记录结果**
 
@@ -2681,7 +2681,7 @@ git commit -m "fix: address E2E smoke test issues"
 ## 风险与回滚
 
 - **构建失败**：Task 0 的工具链准备可能因 VPS 缺包卡住 → 逐包排查 `apt install` 报错，必要时换 `fyne-cross` (Docker)。
-- **Fyne GUI 在 Windows 崩**：最可能是 OpenGL / DWM 问题 → 查 `stim-link.exe` 启动时 stderr（可以临时用 `-ldflags "-H=windows"` 保留控制台）。
+- **Fyne GUI 在 Windows 崩**：最可能是 OpenGL / DWM 问题 → 查 `tether.exe` 启动时 stderr（可以临时用 `-ldflags "-H=windows"` 保留控制台）。
 - **sshfs 挂载失败**：日志会展示 VPS 返回的 stderr → 最常见是 fuse 设备权限问题，VPS 上 `modprobe fuse` 或检查 `/dev/fuse` 权限。
 - **反向转发被 sshd 拒**：`grep AllowTcpForwarding /etc/ssh/sshd_config`，默认应为 yes。
 - **回滚策略**：整个项目独立于旧的 `tunnel.bat` / `mount.sh`，完成前旧脚本保持可用；完成后可以手动删除旧脚本（本计划不做）。
@@ -2690,7 +2690,7 @@ git commit -m "fix: address E2E smoke test issues"
 
 ## 完成标准
 
-1. `stim-link.exe` 能在 Windows 上双击运行
+1. `tether.exe` 能在 Windows 上双击运行
 2. 首次配置只需填 VPS 信息 + 密码一次
 3. 挂载成功后 Windows 本地文件和 VPS `~/local-code` 完全同步
 4. 点"启动 Claude Code"能在新 PowerShell 窗口里用 Claude 编辑 Windows 本地文件

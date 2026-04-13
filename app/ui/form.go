@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"stim-link/config"
+	"tether/config"
 )
 
 type ConfigForm struct {

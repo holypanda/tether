@@ -28,7 +28,7 @@ func defaults() *Config {
 	}
 }
 
-// Load reads a stim-link config file. On any failure — missing file, permission
+// Load reads a tether config file. On any failure — missing file, permission
 // error, malformed JSON — it returns a defaults()-initialised Config alongside
 // the error so callers can still render the UI with sane values. The Config
 // return is never nil.

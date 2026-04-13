@@ -60,7 +60,7 @@ func (c *Client) Mount(p MountParams) (*MountHandle, error) {
 	}
 	// tempKey contains only hex chars: no shell escaping needed for this literal,
 	// but we still quote it below for defense-in-depth.
-	tempKey := fmt.Sprintf("/tmp/.stim-link-%s", hex.EncodeToString(randBytes))
+	tempKey := fmt.Sprintf("/tmp/.tether-%s", hex.EncodeToString(randBytes))
 
 	// Embed the PEM via base64 to avoid any heredoc boundary concerns.
 	pemB64 := base64.StdEncoding.EncodeToString(p.SFTPPrivateKeyPEM)

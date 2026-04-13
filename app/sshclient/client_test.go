@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 // startTestSSHServer starts an in-process SSH server on 127.0.0.1 that accepts

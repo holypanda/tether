@@ -1,6 +1,6 @@
 package main
 
-import "stim-link/ui"
+import "tether/ui"
 
 func main() {
 	ui.New().Run()

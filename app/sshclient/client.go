@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 type Client struct {

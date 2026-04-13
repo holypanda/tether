@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"stim-link/identity"
+	"tether/identity"
 )
 
 type Config struct {

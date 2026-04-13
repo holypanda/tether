@@ -1,4 +1,4 @@
-module stim-link
+module tether
 
 go 1.22.0
 

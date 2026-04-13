@@ -68,7 +68,7 @@ func generateAndSave(path string) (*Identity, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	pemBlock, err := ssh.MarshalPrivateKey(priv, "stim-link")
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "tether")
 	if err != nil {
 		return nil, fmt.Errorf("identity: marshal openssh: %w", err)
 	}
@@ -105,7 +105,7 @@ func (i *Identity) AuthorizedKey() string {
 // PrivatePEM returns the private key in standard OpenSSH PEM format, suitable for
 // writing to disk and use with the OpenSSH command-line ssh / sshfs.
 func (i *Identity) PrivatePEM() []byte {
-	block, err := ssh.MarshalPrivateKey(i.priv, "stim-link")
+	block, err := ssh.MarshalPrivateKey(i.priv, "tether")
 	if err != nil {
 		panic(fmt.Sprintf("identity: marshal private key: %v", err))
 	}

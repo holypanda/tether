@@ -5,13 +5,13 @@ import (
 	"strings"
 	"sync"
 
-	"stim-link/config"
-	"stim-link/identity"
-	"stim-link/sftpserver"
-	"stim-link/sshclient"
+	"tether/config"
+	"tether/identity"
+	"tether/sftpserver"
+	"tether/sshclient"
 )
 
-const configPath = "./stim-link.json"
+const configPath = "./tether.json"
 
 type Connection struct {
 	cfg              *config.Config
