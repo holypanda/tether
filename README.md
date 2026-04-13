@@ -1,6 +1,6 @@
 # tether
 
-让 VPS 上的程序（特别是 Claude Code）直接读写 Windows 本地的项目文件——一个 exe，零配置，零权限。
+让 VPS 上的程序直接读写 Windows 本地的项目文件——一个 exe，零配置，零权限。
 
 **Status**：v1.0.0，初步交付。已通过完整 E2E 冒烟测试。
 
